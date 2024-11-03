@@ -117,15 +117,15 @@
             apiKey: "AIzaSyBzC8IOgchkmZzJncXoZp8xBSWV7mDnHYI",
             authDomain: "chat10-27771.firebaseapp.com",
             projectId: "chat10-27771",
-            storageBucket: "chat10-27771.firebasestorage.app",
+            storageBucket: "chat10-27771.appspot.com",
             messagingSenderId: "87750289560",
             appId: "G-4N1ZRGRB2M"
         };
 
         // Initialize Firebase
         firebase.initializeApp(firebaseConfig);
-        const auth = firebase.auth();
-        const db = firebase.firestore();
+        const auth = firebase.auth(); // Initialize auth
+        const db = firebase.firestore(); // Initialize Firestore
 
         // Show/Hide functions
         function showLogin() {
