@@ -1,0 +1,245 @@
+<!DOCTYPE html>
+<html>
+<head>
+    <title>Chat App with Login</title>
+    <style>
+        body {
+            font-family: Arial, sans-serif;
+            max-width: 800px;
+            margin: 20px auto;
+            padding: 20px;
+            background-color: #f0f2f5;
+        }
+        #chatBox {
+            height: 400px;
+            border: 1px solid #ccc;
+            overflow-y: auto;
+            padding: 10px;
+            margin-bottom: 10px;
+            background-color: white;
+            border-radius: 10px;
+            box-shadow: 0 2px 5px rgba(0,0,0,0.1);
+        }
+        .input-field {
+            width: 100%;
+            padding: 12px;
+            margin: 8px 0;
+            border: 1px solid #ddd;
+            border-radius: 20px;
+            font-size: 16px;
+            box-sizing: border-box;
+        }
+        button {
+            padding: 12px 20px;
+            background-color: #0084ff;
+            color: white;
+            border: none;
+            border-radius: 20px;
+            cursor: pointer;
+            font-size: 16px;
+            margin: 5px;
+        }
+        button:hover {
+            background-color: #0073e6;
+        }
+        .message {
+            margin: 8px 0;
+            padding: 10px 15px;
+            border-radius: 20px;
+            max-width: 70%;
+            word-wrap: break-word;
+        }
+        .user-message {
+            background-color: #0084ff;
+            color: white;
+            margin-left: auto;
+            margin-right: 5px;
+        }
+        .other-message {
+            background-color: #e4e6eb;
+            color: black;
+            margin-right: auto;
+            margin-left: 5px;
+        }
+        .timestamp {
+            font-size: 12px;
+            color: #777;
+            margin: 2px 10px;
+        }
+        .auth-container {
+            background-color: white;
+            padding: 20px;
+            border-radius: 10px;
+            box-shadow: 0 2px 5px rgba(0,0,0,0.1);
+            margin-bottom: 20px;
+        }
+        .hidden {
+            display: none;
+        }
+    </style>
+</head>
+<body>
+    <!-- Registration Form -->
+    <div id="registerForm" class="auth-container">
+        <h2>Register</h2>
+        <input type="text" id="regUsername" placeholder="Username" class="input-field">
+        <input type="email" id="regEmail" placeholder="Email" class="input-field">
+        <input type="password" id="regPassword" placeholder="Password" class="input-field">
+        <button onclick="register()">Register</button>
+        <p>Already have an account? <a href="#" onclick="showLogin()">Login</a></p>
+    </div>
+
+    <!-- Login Form -->
+    <div id="loginForm" class="auth-container hidden">
+        <h2>Login</h2>
+        <input type="email" id="loginEmail" placeholder="Email" class="input-field">
+        <input type="password" id="loginPassword" placeholder="Password" class="input-field">
+        <button onclick="login()">Login</button>
+        <p>Don't have an account? <a href="#" onclick="showRegister()">Register</a></p>
+    </div>
+
+    <!-- Chat Interface -->
+    <div id="chatInterface" class="hidden">
+        <div id="chatBox"></div>
+        <div style="display: flex; align-items: center;">
+            <input type="text" id="messageInput" placeholder="Type your message..." class="input-field">
+            <button onclick="sendMessage()">Send</button>
+            <button onclick="logout()" style="background-color: #dc3545;">Logout</button>
+        </div>
+    </div>
+
+    <script>
+        // Store users in localStorage
+        let users = JSON.parse(localStorage.getItem('users')) || [];
+        let currentUser = null;
+
+        // Show/Hide functions
+        function showLogin() {
+            document.getElementById('registerForm').classList.add('hidden');
+            document.getElementById('loginForm').classList.remove('hidden');
+            document.getElementById('chatInterface').classList.add('hidden');
+        }
+
+        function showRegister() {
+            document.getElementById('registerForm').classList.remove('hidden');
+            document.getElementById('loginForm').classList.add('hidden');
+            document.getElementById('chatInterface').classList.add('hidden');
+        }
+
+        function showChat() {
+            document.getElementById('registerForm').classList.add('hidden');
+            document.getElementById('loginForm').classList.add('hidden');
+            document.getElementById('chatInterface').classList.remove('hidden');
+        }
+
+        // User Registration
+        function register() {
+            const username = document.getElementById('regUsername').value.trim();
+            const email = document.getElementById('regEmail').value.trim();
+            const password = document.getElementById('regPassword').value;
+
+            if (!username || !email || !password) {
+                alert('Please fill in all fields');
+                return;
+            }
+
+            if (users.some(user => user.email === email)) {
+                alert('Email already registered');
+                return;
+            }
+
+            users.push({ username, email, password });
+            localStorage.setItem('users', JSON.stringify(users));
+            alert('Registration successful! Please login.');
+            showLogin();
+        }
+
+        // User Login
+        function login() {
+            const email = document.getElementById('loginEmail').value.trim();
+            const password = document.getElementById('loginPassword').value;
+
+            const user = users.find(u => u.email === email && u.password === password);
+            if (user) {
+                currentUser = user;
+                showChat();
+                loadMessages();
+            } else {
+                alert('Invalid email or password');
+            }
+        }
+
+        // Logout
+        function logout() {
+            currentUser = null;
+            showLogin();
+        }
+
+        // Chat Functions
+        function sendMessage() {
+            const messageInput = document.getElementById('messageInput');
+            const message = messageInput.value.trim();
+            
+            if (message && currentUser) {
+                const chatBox = document.getElementById('chatBox');
+                const messageDiv = document.createElement('div');
+                const timestamp = new Date().toLocaleTimeString();
+                
+                messageDiv.className = 'message user-message';
+                messageDiv.textContent = message;
+                
+                const timeDiv = document.createElement('div');
+                timeDiv.className = 'timestamp';
+                timeDiv.textContent = `${currentUser.username} - ${timestamp}`;
+                
+                chatBox.appendChild(messageDiv);
+                chatBox.appendChild(timeDiv);
+                
+                // Save message to localStorage
+                const messages = JSON.parse(localStorage.getItem('messages')) || [];
+                messages.push({
+                    text: message,
+                    username: currentUser.username,
+                    timestamp: timestamp
+                });
+                localStorage.setItem('messages', JSON.stringify(messages));
+                
+                messageInput.value = '';
+                chatBox.scrollTop = chatBox.scrollHeight;
+            }
+        }
+
+        function loadMessages() {
+            const messages = JSON.parse(localStorage.getItem('messages')) || [];
+            const chatBox = document.getElementById('chatBox');
+            chatBox.innerHTML = '';
+            
+            messages.forEach(message => {
+                const messageDiv = document.createElement('div');
+                messageDiv.className = `message ${message.username === currentUser.username ? 'user-message' : 'other-message'}`;
+                messageDiv.textContent = message.text;
+                
+                const timeDiv = document.createElement('div');
+                timeDiv.className = 'timestamp';
+                timeDiv.textContent = `${message.username} - ${message.timestamp}`;
+                
+                chatBox.appendChild(messageDiv);
+                chatBox.appendChild(timeDiv);
+            });
+            
+            chatBox.scrollTop = chatBox.scrollHeight;
+        }
+
+        // Enter key to send message
+        document.getElementById('messageInput')?.addEventListener('keypress', function(e) {
+            if (e.key === 'Enter') {
+                sendMessage();
+            }
+        });
+
+        // Check if user is already logged in (you might want to add this feature)
+        // For now, show login by default
+        showLogin();
+    </script>
+</body>
+</html>
