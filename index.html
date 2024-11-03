@@ -1,7 +1,7 @@
 <!DOCTYPE html>
 <html>
 <head>
-    <title>Chat App with Login</title>
+    <title>Chat App with Firebase</title>
     <style>
         body {
             font-family: Arial, sans-serif;
@@ -79,7 +79,7 @@
     </style>
 </head>
 <body>
-    <!-- Registration Form -->
+    <!-- Registration and Login Forms -->
     <div id="registerForm" class="auth-container">
         <h2>Register</h2>
         <input type="text" id="regUsername" placeholder="Username" class="input-field">
@@ -89,7 +89,6 @@
         <p>Already have an account? <a href="#" onclick="showLogin()">Login</a></p>
     </div>
 
-    <!-- Login Form -->
     <div id="loginForm" class="auth-container hidden">
         <h2>Login</h2>
         <input type="email" id="loginEmail" placeholder="Email" class="input-field">
@@ -98,7 +97,6 @@
         <p>Don't have an account? <a href="#" onclick="showRegister()">Register</a></p>
     </div>
 
-    <!-- Chat Interface -->
     <div id="chatInterface" class="hidden">
         <div id="chatBox"></div>
         <div style="display: flex; align-items: center;">
@@ -108,10 +106,26 @@
         </div>
     </div>
 
+    <!-- Firebase SDK -->
+    <script src="https://www.gstatic.com/firebasejs/9.22.0/firebase-app.js"></script>
+    <script src="https://www.gstatic.com/firebasejs/9.22.0/firebase-auth.js"></script>
+    <script src="https://www.gstatic.com/firebasejs/9.22.0/firebase-firestore.js"></script>
+
     <script>
-        // Store users in localStorage
-        let users = JSON.parse(localStorage.getItem('users')) || [];
-        let currentUser = null;
+        // Your Firebase configuration
+        const firebaseConfig = {
+            apiKey: "AIzaSyBzC8IOgchkmZzJncXoZp8xBSWV7mDnHYI",
+            authDomain: "chat10-27771.firebaseapp.com",
+            projectId: "chat10-27771",
+            storageBucket: "chat10-27771.firebasestorage.app",
+            messagingSenderId: "87750289560",
+            appId: "G-4N1ZRGRB2M"
+        };
+
+        // Initialize Firebase
+        firebase.initializeApp(firebaseConfig);
+        const auth = firebase.auth();
+        const db = firebase.firestore();
 
         // Show/Hide functions
         function showLogin() {
@@ -133,7 +147,7 @@
         }
 
         // User Registration
-        function register() {
+        async function register() {
             const username = document.getElementById('regUsername').value.trim();
             const email = document.getElementById('regEmail').value.trim();
             const password = document.getElementById('regPassword').value;
@@ -143,91 +157,70 @@
                 return;
             }
 
-            if (users.some(user => user.email === email)) {
-                alert('Email already registered');
-                return;
+            try {
+                const userCredential = await auth.createUserWithEmailAndPassword(email, password);
+                await db.collection('users').doc(userCredential.user.uid).set({ username });
+                alert('Registration successful! Please login.');
+                showLogin();
+            } catch (error) {
+                alert(error.message);
             }
-
-            users.push({ username, email, password });
-            localStorage.setItem('users', JSON.stringify(users));
-            alert('Registration successful! Please login.');
-            showLogin();
         }
 
         // User Login
-        function login() {
+        async function login() {
             const email = document.getElementById('loginEmail').value.trim();
             const password = document.getElementById('loginPassword').value;
 
-            const user = users.find(u => u.email === email && u.password === password);
-            if (user) {
-                currentUser = user;
+            try {
+                await auth.signInWithEmailAndPassword(email, password);
                 showChat();
                 loadMessages();
-            } else {
+            } catch (error) {
                 alert('Invalid email or password');
             }
         }
 
         // Logout
         function logout() {
-            currentUser = null;
+            auth.signOut();
             showLogin();
         }
 
         // Chat Functions
-        function sendMessage() {
+        async function sendMessage() {
             const messageInput = document.getElementById('messageInput');
             const message = messageInput.value.trim();
             
-            if (message && currentUser) {
+            if (message && auth.currentUser) {
                 const chatBox = document.getElementById('chatBox');
-                const messageDiv = document.createElement('div');
                 const timestamp = new Date().toLocaleTimeString();
                 
-                messageDiv.className = 'message user-message';
-                messageDiv.textContent = message;
-                
-                const timeDiv = document.createElement('div');
-                timeDiv.className = 'timestamp';
-                timeDiv.textContent = `${currentUser.username} - ${timestamp}`;
-                
-                chatBox.appendChild(messageDiv);
-                chatBox.appendChild(timeDiv);
-                
-                // Save message to localStorage
-                const messages = JSON.parse(localStorage.getItem('messages')) || [];
-                messages.push({
+                await db.collection('messages').add({
                     text: message,
-                    username: currentUser.username,
+                    username: auth.currentUser.email,
                     timestamp: timestamp
                 });
-                localStorage.setItem('messages', JSON.stringify(messages));
-                
+
                 messageInput.value = '';
                 chatBox.scrollTop = chatBox.scrollHeight;
             }
         }
 
+        // Load Messages
         function loadMessages() {
-            const messages = JSON.parse(localStorage.getItem('messages')) || [];
             const chatBox = document.getElementById('chatBox');
-            chatBox.innerHTML = '';
-            
-            messages.forEach(message => {
-                const messageDiv = document.createElement('div');
-                messageDiv.className = `message ${message.username === currentUser.username ? 'user-message' : 'other-message'}`;
-                messageDiv.textContent = message.text;
-                
-                const timeDiv = document.createElement('div');
-                timeDiv.className = 'timestamp';
-                timeDiv.textContent = `${message.username} - ${message.timestamp}`;
-                
-                chatBox.appendChild(messageDiv);
-                chatBox.appendChild(timeDiv);
+            db.collection('messages').orderBy('timestamp').onSnapshot(snapshot => {
+                chatBox.innerHTML = '';
+                snapshot.forEach(doc => {
+                    const message = doc.data();
+                    const messageDiv = document.createElement('div');
+                    messageDiv.className = 'message';
+                    messageDiv.textContent = `${message.username}: ${message.text}`;
+                    chatBox.appendChild(messageDiv);
+                });
+                chatBox.scrollTop = chatBox.scrollHeight;
             });
-            
-            chatBox.scrollTop = chatBox.scrollHeight;
         }
 
         // Enter key to send message
@@ -237,9 +230,15 @@
             }
         });
 
-        // Check if user is already logged in (you might want to add this feature)
-        // For now, show login by default
-        showLogin();
+        // Check if user is already logged in
+        auth.onAuthStateChanged(user => {
+            if (user) {
+                showChat();
+                loadMessages();
+            } else {
+                showLogin();
+            }
+        });
     </script>
 </body>
 </html>
